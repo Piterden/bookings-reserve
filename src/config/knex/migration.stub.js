@@ -1,17 +1,23 @@
-/**
- * @param {import('knex').Knex} knex
- * @returns {Promise<void>}
- */
-export const up = async (knex) => (await knex.schema.hasTable('TABLE_NAME'))
-  ? null
-  : knex.schema.createTable('TABLE_NAME', (table) => {
-    // columns here
-  })
+const tableName = "TABLE_NAME"
 
 /**
  * @param {import('knex').Knex} knex
  * @returns {Promise<void>}
  */
-export const down = async (knex) => (await knex.schema.hasTable('TABLE_NAME'))
-  ? knex.schema.dropTable('TABLE_NAME')
-  : null
+export const up = async (knex) => {
+  if (!await knex.schema.hasTable(tableName)) {
+    return knex.schema.createTable(tableName, (table) => {
+      // columns here
+    })
+  }
+}
+
+/**
+ * @param {import('knex').Knex} knex
+ * @returns {Promise<void>}
+ */
+export const down = async (knex) => {
+  if (await knex.schema.hasTable(tableName)) {
+    return knex.schema.dropTable(tableName)
+  }
+}
