@@ -9,6 +9,7 @@ import {
  } from './database.js'
 
 dotenv.config()
+const { APP_PORT } = process.env
 
 const fastify = Fastify()
 const ajv = new Ajv({
@@ -16,62 +17,70 @@ const ajv = new Ajv({
   useDefaults: true,
 })
 
-fastify.setValidatorCompiler(({ schema, method, url, httpPart }) => {
-  return ajv.compile(schema)
-})
-
-fastify.setErrorHandler((error, request, reply) => {
-  reply.status(500).send({ ok: false, error: error.message })
-})
-
-const schema = {
-  body: {
-    type: 'object',
-    additionalProperties: false,
-    required: ['event_id', 'user_id'],
-    properties: {
-      event_id: { type: 'number' },
-      user_id: { type: 'string' },
-    },
-  },
-}
-
 fastify.post(
   '/api/bookings/reserve',
   {
-    schema,
     attachValidation: true,
+    validatorCompiler: ({ schema }) => {
+      return ajv.compile(schema)
+    },
+    errorHandler: (error, request, reply) => {
+      reply.status(500).send({ ok: false, error: error.message })
+    },
+    schema: {
+      body: {
+        title: 'Bookings reserve DTO',
+        type: 'object',
+        additionalProperties: false,
+        required: ['event_id', 'user_id'],
+        properties: {
+          event_id: { type: 'number' },
+          user_id: { type: 'string' },
+        },
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            ok: { type: 'boolean' },
+            data: {
+              type: 'object',
+              properties: {
+                id: { type: 'number' },
+              },
+            },
+          },
+        },
+        500: {
+          type: 'object',
+          properties: {
+            ok: { type: 'boolean' },
+            error: { type: 'string' },
+          },
+        },
+      },
+    },
   },
   async (request, reply) => {
     if (request.validationError) {
       throw new Error(request.validationError)
     }
-
     const { event_id, user_id } = request.body
 
     if (!await getEvent(event_id)) {
       throw new Error(`Event "id" = ${event_id} doesn't exist!`)
     }
-
     if (!await eventIsAvailable(event_id)) {
       throw new Error(`All seats for event "id" = ${event_id} have been reserved already!`)
     }
-
     if (!await userCanReserveEvent(event_id, user_id)) {
-      throw new Error(`User "id" = ${user_id} has reserved a seat at this event already!`)
+      throw new Error(`User "id" = ${user_id} has already reserved a seat at event "id" = ${event_id}!`)
     }
-
     const data = await makeReserve(event_id, user_id)
     reply.send({ ok: true, data })
-  })
+  }
+)
 
-fastify.listen({
-  port: process.env.APP_PORT,
-  host: '0.0.0.0',
-})
-  .then(() => {
-    console.log(`Server is now listening on ${process.env.APP_PORT} port.`)
-  })
+fastify.listen({ port: APP_PORT, host: '0.0.0.0' })
+  .then(() => { console.log(`Server is now listening on port %d.`, APP_PORT)})
   .catch(console.error)
-
-
