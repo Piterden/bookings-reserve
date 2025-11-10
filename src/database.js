@@ -3,15 +3,27 @@ import knexConfig from '../knexfile.cjs'
 
 const db = knex(knexConfig)
 
-export const getEvent = async (eventId) => {
+/**
+ * Gets the event.
+ *
+ * @param {number} event_id The event identifier
+ * @return {Promise<Event>} The event.
+ */
+export const getEvent = async (event_id) => {
   const event = await db('events')
-    .where({ id: eventId })
+    .where({ id: event_id })
     .first()
   return event
 }
 
-export const eventIsAvailable = async (eventId) => {
-  const event = await getEvent(eventId)
+/**
+ * Checks if event is avaailable for booking.
+ *
+ * @param {number} event_id The event identifier
+ * @return {Promise<boolean>}
+ */
+export const eventIsAvailable = async (event_id) => {
+  const event = await getEvent(event_id)
   const { id, total_seats } = event
   const { reserved_seats } = await db('bookings')
     .count('id AS reserved_seats')
@@ -20,15 +32,29 @@ export const eventIsAvailable = async (eventId) => {
   return reserved_seats < total_seats
 }
 
-export const userCanReserveEvent = async (eventId, userId) => {
+/**
+ * Checks if user has reserved event already.
+ *
+ * @param {number} event_id The event identifier
+ * @param {string} user_id The user identifier
+ * @return {Promise<boolean>}
+ */
+export const userCanReserveEvent = async (event_id, user_id) => {
   const reserves = await db('bookings')
-    .where({ event_id: eventId, user_id: userId })
+    .where({ event_id, user_id })
   return reserves.length === 0
 }
 
-export const makeReserve = async (eventId, userId) => {
+/**
+ * Makes a reserve.
+ *
+ * @param {number} event_id The event identifier
+ * @param {string} user_id The user identifier
+ * @return {Promise<Booking>}
+ */
+export const makeReserve = async (event_id, user_id) => {
   const [reserve] = await db('bookings')
     .returning('id')
-    .insert({ event_id: eventId, user_id: userId })
+    .insert({ event_id, user_id })
   return reserve
 }
