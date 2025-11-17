@@ -58,3 +58,18 @@ export const makeReserve = async (event_id, user_id) => {
     .insert({ event_id, user_id })
   return reserve
 }
+
+/**
+ * Gets the top 10 users by bookings count.
+ *
+ * @param {string} period The period (day|week|month)
+ */
+export const getTop10 = async (period = 'month') => {
+  const result = await db('bookings')
+    .select('user_id')
+    .count('id AS booking_count')
+    .groupBy('user_id')
+    .orderBy('booking_count', 'DESC')
+    .where('created_at', '>=', knex.raw(`current_date - interval '1 ${period}'`))
+  return result.map((item, idx) => { ...item, place: idx + 1 })
+}
